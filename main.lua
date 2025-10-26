@@ -235,7 +235,7 @@ local Window = WindUI:CreateWindow({
         StrokeThickness = 3,
         Enabled = true,
         Draggable = true,
-        OnlyMobile = true,
+        OnlyMobile = false,
         Color = ColorSequence.new(Color3.fromHex("#30FF6A"), Color3.fromHex("#e7ff2f"))
     }
 })
