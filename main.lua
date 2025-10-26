@@ -1,22 +1,8 @@
 -- ==============================
--- CARGA SEGURA DE WINDUI
+-- CONFIGURACIÓN INICIAL
 -- ==============================
 
-local success, winduiErr = pcall(function()
-    getgenv().SecureMode = true
-    _G.WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
-end)
-
-if not success then
-    warn("🚨 Falló la carga de WindUI:", winduiErr)
-    return
-end
-
-local WindUI = _G.WindUI
-
--- ==============================
--- SERVICIOS Y CONFIGURACIÓN
--- ==============================
+getgenv().SecureMode = true
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -26,11 +12,10 @@ local LocalPlayer = Players.LocalPlayer
 local targetPlaceId = 139218725767607
 if game.PlaceId ~= targetPlaceId then
     warn("Este script solo funciona en el lugar con ID: " .. targetPlaceId)
-    -- Puedes descomentar el return si quieres bloquear la GUI fuera del lugar
 end
 
 -- ==============================
--- FUNCIONES DE AUTO DELIVERY
+-- FUNCIONES DE AUTO DELIVERY (INTACTAS)
 -- ==============================
 
 local function findFoodItem()
@@ -72,7 +57,6 @@ local function movePlayerWithTween(targetCFrame)
     local time = math.random(3, 8) / 10
     local info = TweenInfo.new(time, Enum.EasingStyle.Linear)
     local pos = targetCFrame.Position
-    -- Corregido: Simplifica el offset para evitar errores
     local newCF = CFrame.new(pos) * CFrame.new(0, 0, -2)
     local tween = TweenService:Create(hrp, info, {CFrame = newCF})
     tween:Play()
@@ -104,7 +88,6 @@ local function teleportAndPickUpFood()
 
     local click = food:FindFirstChildOfClass("ClickDetector") or (food.Parent and food.Parent:FindFirstChildOfClass("ClickDetector"))
     if click then
-        -- Corregido: Usa fireclickdetector (compatible con más executors)
         fireclickdetector(click)
         print("✅ ClickDetector activado:", food.Name)
     end
@@ -183,7 +166,6 @@ local function deliverFoodToTarget()
 
     local click = target:FindFirstChildOfClass("ClickDetector") or (target.Parent and target.Parent:FindFirstChildOfClass("ClickDetector"))
     if click then
-        -- Corregido: Usa fireclickdetector
         fireclickdetector(click)
         print("📤 Entrega activada (Click):", target.Name)
     end
@@ -222,67 +204,116 @@ local function onToggleChanged(state)
 end
 
 -- ==============================
--- CREAR GUI (SIEMPRE SE CREA)
+-- CREAR MENÚ OPTIMIZADO (UI NATIVA PARA MÓVIL)
 -- ==============================
 
-local Window = WindUI:CreateWindow({
-    Title = "Lorenz0 | Hub",
-    Author = "by Lorenz0",
-    OpenButton = {
-        Title = "Open Lorenz0 Hub",
-        Icon = "monitor",
-        CornerRadius = UDim.new(1, 0),
-        StrokeThickness = 3,
-        Enabled = true,
-        Draggable = true,
-        OnlyMobile = false,
-        Color = ColorSequence.new(Color3.fromHex("#30FF6A"), Color3.fromHex("#e7ff2f"))
-    }
-})
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-Window:Tag({ Title = "v1.0", Color = Color3.fromRGB(26, 255, 141) })
+-- Crear ScreenGui principal
+local MenuGui = Instance.new("ScreenGui")
+MenuGui.Name = "Lorenz0Hub"
+MenuGui.ResetOnSpawn = false
+MenuGui.Parent = PlayerGui
 
-local ElementsSection = Window:Section({ Title = "Elementos" })
-local ConfigSection = Window:Section({ Title = "Configuración" })
-local OtherSection = Window:Section({ Title = "Otros" })
+-- Frame principal del menú
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 300, 0, 400)
+MainFrame.Position = UDim2.new(0.8, 0, 0.1, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.BorderSizePixel = 2
+MainFrame.BorderColor3 = Color3.fromRGB(0, 255, 0)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = MenuGui
 
--- Cargar íconos (opcional, no crítico)
-local successIcons, NebulaIcons = pcall(function()
-    return loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
+-- Título
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "Title"
+TitleLabel.Size = UDim2.new(1, 0, 0, 50)
+TitleLabel.Position = UDim2.new(0, 0, 0, 0)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+TitleLabel.Text = "Lorenz0 | Hub v1.0"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextScaled = true
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Parent = MainFrame
+
+-- Sección Auto Delivery
+local AutoDeliveryFrame = Instance.new("Frame")
+AutoDeliveryFrame.Name = "AutoDelivery"
+AutoDeliveryFrame.Size = UDim2.new(1, -20, 0, 100)
+AutoDeliveryFrame.Position = UDim2.new(0, 10, 0, 60)
+AutoDeliveryFrame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+AutoDeliveryFrame.BackgroundTransparency = 0.2
+AutoDeliveryFrame.Parent = MainFrame
+
+local AutoDeliveryLabel = Instance.new("TextLabel")
+AutoDeliveryLabel.Size = UDim2.new(1, 0, 0, 30)
+AutoDeliveryLabel.Position = UDim2.new(0, 0, 0, 0)
+AutoDeliveryLabel.BackgroundTransparency = 1
+AutoDeliveryLabel.Text = "Auto Delivery"
+AutoDeliveryLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoDeliveryLabel.TextScaled = true
+AutoDeliveryLabel.Font = Enum.Font.SourceSans
+AutoDeliveryLabel.Parent = AutoDeliveryFrame
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Name = "Toggle"
+ToggleButton.Size = UDim2.new(0.8, 0, 0, 50)
+ToggleButton.Position = UDim2.new(0.1, 0, 0, 35)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+ToggleButton.Text = "OFF"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextScaled = true
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Parent = AutoDeliveryFrame
+
+ToggleButton.MouseButton1Click:Connect(function()
+    toggle = not toggle
+    if toggle then
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        ToggleButton.Text = "ON"
+        onToggleChanged(true)
+    else
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        ToggleButton.Text = "OFF"
+        onToggleChanged(false)
+    end
 end)
 
-if successIcons and NebulaIcons and NebulaIcons.Fluency then
-    WindUI.Creator.AddIcons("fluency", NebulaIcons.Fluency)
-end
+-- Espacio Futuro (Frame vacío para añadir funciones nuevas)
+local EspacioFuturo = Instance.new("Frame")
+EspacioFuturo.Name = "EspacioFuturo"
+EspacioFuturo.Size = UDim2.new(1, -20, 0, 200)
+EspacioFuturo.Position = UDim2.new(0, 10, 0, 170)
+EspacioFuturo.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+EspacioFuturo.BackgroundTransparency = 0.5
+EspacioFuturo.Parent = MainFrame
 
--- Pestaña Delivery
-local DeliveryTab = ElementsSection:Tab({ Title = "Delivery", Icon = "box" })
-DeliveryTab:Toggle({
-    Title = "Auto Delivery",
-    Desc = "Recoge y entrega comida automáticamente.",
-    Callback = onToggleChanged
-})
-DeliveryTab:Space()
+local FuturoLabel = Instance.new("TextLabel")
+FuturoLabel.Size = UDim2.new(1, 0, 0, 30)
+FuturoLabel.Position = UDim2.new(0, 0, 0, 0)
+FuturoLabel.BackgroundTransparency = 1
+FuturoLabel.Text = "Espacio Futuro (Añade funciones aquí)"
+FuturoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+FuturoLabel.TextScaled = true
+FuturoLabel.Font = Enum.Font.SourceSans
+FuturoLabel.Parent = EspacioFuturo
 
--- Botón de prueba
-local ButtonTab = ElementsSection:Tab({ Title = "Pruebas", Icon = "test-tube" })
-ButtonTab:Button({
-    Title = "Test Button",
-    Callback = function() print("Botón de prueba funcionando") end
-})
+-- Ejemplo de cómo añadir algo futuro (descomenta y modifica)
+-- local NuevoBoton = Instance.new("TextButton")
+-- NuevoBoton.Size = UDim2.new(0.8, 0, 0, 50)
+-- NuevoBoton.Position = UDim2.new(0.1, 0, 0, 40)
+-- NuevoBoton.BackgroundColor3 = Color3.fromRGB(0, 0, 255)
+-- NuevoBoton.Text = "Nueva Función"
+-- NuevoBoton.TextColor3 = Color3.fromRGB(255, 255, 255)
+-- NuevoBoton.TextScaled = true
+-- NuevoBoton.Font = Enum.Font.SourceSansBold
+-- NuevoBoton.Parent = EspacioFuturo
+-- NuevoBoton.MouseButton1Click:Connect(function()
+--     print("Nueva función activada")
+-- end)
 
--- Sección de Discord (sin romper si falla)
-local DiscordTab = OtherSection:Tab({ Title = "Discord" })
-DiscordTab:Button({
-    Title = "Unirse al Discord",
-    Callback = function()
-        setclipboard("https://discord.gg/ftgs-development-hub-1300692552005189632")
-        WindUI:Notify({
-            Title = "Enlace copiado",
-            Desc = "¡Únete a nuestro servidor!",
-            Icon = "users"
-        })
-    end
-})
-
-print("✅ GUI de Lorenz0 cargada correctamente")
+print("✅ Menú de Lorenz0 cargado correctamente")
