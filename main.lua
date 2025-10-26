@@ -1,5 +1,5 @@
 -- ==============================
--- CONFIGURACIÓN INICIAL
+-- CONFIGURACIÓN INICIAL (PASIVA)
 -- ==============================
 
 getgenv().SecureMode = true
@@ -15,7 +15,7 @@ if game.PlaceId ~= targetPlaceId then
 end
 
 -- ==============================
--- FUNCIONES DE AUTO DELIVERY (INTACTAS)
+-- FUNCIONES DE AUTO DELIVERY (SOLO CUANDO SE ACTIVA)
 -- ==============================
 
 local function findFoodItem()
@@ -54,13 +54,27 @@ end
 local function movePlayerWithTween(targetCFrame)
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
-    local time = math.random(3, 8) / 10
-    local info = TweenInfo.new(time, Enum.EasingStyle.Linear)
-    local pos = targetCFrame.Position
-    local newCF = CFrame.new(pos) * CFrame.new(0, 0, -2)
-    local tween = TweenService:Create(hrp, info, {CFrame = newCF})
-    tween:Play()
-    tween.Completed:Wait()
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    local targetPos = targetCFrame.Position
+    local distance = (hrp.Position - targetPos).Magnitude
+
+    if distance < 50 then
+        humanoid:MoveTo(targetPos)
+        humanoid.MoveToFinished:Wait()
+    else
+        local time = math.random(15, 25) / 10  -- Más lento: 1.5-2.5 segundos
+        local info = TweenInfo.new(time, Enum.EasingStyle.Linear)
+        local newCF = CFrame.new(targetPos) * CFrame.new(0, 0, -2)
+        local tween = TweenService:Create(hrp, info, {CFrame = newCF})
+        tween:Play()
+        local success = tween.Completed:Wait()
+        if not success then
+            warn("Tween interrumpido – pausando")
+            wait(10)
+        end
+    end
 end
 
 local function teleportAndPickUpFood()
@@ -77,6 +91,7 @@ local function teleportAndPickUpFood()
     end
 
     movePlayerWithTween(cframe)
+    wait(math.random(2, 4))  -- Delays más largos
 
     local prompt = food:FindFirstChildOfClass("ProximityPrompt") or (food.Parent and food.Parent:FindFirstChildOfClass("ProximityPrompt"))
     if prompt then
@@ -92,7 +107,7 @@ local function teleportAndPickUpFood()
         print("✅ ClickDetector activado:", food.Name)
     end
 
-    wait(0.5)
+    wait(math.random(2, 5))
     if not food:IsDescendantOf(Workspace) then
         print("📦 Comida recogida:", food.Name)
     else
@@ -155,6 +170,7 @@ local function deliverFoodToTarget()
     end
 
     movePlayerWithTween(cframe)
+    wait(math.random(2, 4))
 
     local prompt = target:FindFirstChildOfClass("ProximityPrompt") or (target.Parent and target.Parent:FindFirstChildOfClass("ProximityPrompt"))
     if prompt then
@@ -170,7 +186,7 @@ local function deliverFoodToTarget()
         print("📤 Entrega activada (Click):", target.Name)
     end
 
-    wait(0.5)
+    wait(math.random(2, 5))
     print("✅ Intento de entrega completado:", target.Name)
 end
 
@@ -180,9 +196,9 @@ local function automateFoodDelivery()
     isRunning = true
     local success, err = pcall(function()
         teleportAndPickUpFood()
-        wait(0.5)
+        wait(math.random(3, 6))
         deliverFoodToTarget()
-        wait(1)
+        wait(math.random(4, 8))
     end)
     if not success then
         warn("Error en Auto Delivery:", err)
@@ -197,14 +213,14 @@ local function onToggleChanged(state)
         spawn(function()
             while toggle do
                 automateFoodDelivery()
-                wait(math.random(2, 4))
+                wait(math.random(8, 15))  -- Loop mucho menos frecuente
             end
         end)
     end
 end
 
 -- ==============================
--- CREAR MENÚ OPTIMIZADO (UI NATIVA PARA MÓVIL)
+-- CREAR MENÚ OPTIMIZADO (SOLO UI, NADA MÁS)
 -- ==============================
 
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -302,18 +318,4 @@ FuturoLabel.TextScaled = true
 FuturoLabel.Font = Enum.Font.SourceSans
 FuturoLabel.Parent = EspacioFuturo
 
--- Ejemplo de cómo añadir algo futuro (descomenta y modifica)
--- local NuevoBoton = Instance.new("TextButton")
--- NuevoBoton.Size = UDim2.new(0.8, 0, 0, 50)
--- NuevoBoton.Position = UDim2.new(0.1, 0, 0, 40)
--- NuevoBoton.BackgroundColor3 = Color3.fromRGB(0, 0, 255)
--- NuevoBoton.Text = "Nueva Función"
--- NuevoBoton.TextColor3 = Color3.fromRGB(255, 255, 255)
--- NuevoBoton.TextScaled = true
--- NuevoBoton.Font = Enum.Font.SourceSansBold
--- NuevoBoton.Parent = EspacioFuturo
--- NuevoBoton.MouseButton1Click:Connect(function()
---     print("Nueva función activada")
--- end)
-
-print("✅ Menú de Lorenz0 cargado correctamente")
+print("✅ Menú de Lorenz0 cargado correctamente (versión sigilosa)")
