@@ -1,8 +1,15 @@
--- Inicialización y Configuración Global
-getgenv().SecureMode = true
+-- Cargar WindUI de forma segura
+local success, winduiErr = pcall(function()
+    getgenv().SecureMode = true
+    _G.WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
+end)
 
--- Cargar WindUI desde GitHub
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+if not success then
+    warn("🚨 Falló la carga de WindUI:", winduiErr)
+    return
+end
+
+local WindUI = _G.WindUI
 
 -- Servicios de Roblox
 local Players = game:GetService("Players")
@@ -205,7 +212,7 @@ local function automateFoodDelivery()
     end)
     
     if not success then
-        warn("Error en el ciclo de Auto Delivery: " .. tostring(err))
+        warn("Error en el ciclo de Auto Delivery:" .. tostring(err))
     end
     
     isRunning = false
@@ -245,7 +252,7 @@ local Window = WindUI:CreateWindow({
         StrokeThickness = 3,
         Enabled = true,
         Draggable = true,
-        OnlyMobile = false,
+        OnlyMobile = true,
         Color = ColorSequence.new(
             Color3.fromHex("#30FF6A"),
             Color3.fromHex("#e7ff2f")
@@ -264,8 +271,14 @@ local ElementsSection = Window:Section({ Title = "Elementos" })
 local ConfigUsageSection = Window:Section({ Title = "Configuracion" })
 local OtherSection = Window:Section({ Title = "Otros" })
 
--- Cargar Iconos de Nebula
-local NebulaIcons = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
+-- Cargar íconos (opcional, con manejo de errores)
+local successIcons, iconErr = pcall(function()
+    local NebulaIcons = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
+end)
+
+if not successIcons then
+    warn("⚠️ No se cargaron íconos:", iconErr)
+end
 WindUI.Creator.AddIcons("fluency", NebulaIcons.Fluency)
 
 -- Pestaña de Delivery (Elementos)
