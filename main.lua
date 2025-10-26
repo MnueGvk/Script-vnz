@@ -1,4 +1,7 @@
--- Cargar WindUI de forma segura
+-- ==============================
+-- CARGA SEGURA DE WINDUI
+-- ==============================
+
 local success, winduiErr = pcall(function()
     getgenv().SecureMode = true
     _G.WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
@@ -11,23 +14,25 @@ end
 
 local WindUI = _G.WindUI
 
--- Servicios de Roblox
+-- ==============================
+-- SERVICIOS Y CONFIGURACIÓN
+-- ==============================
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- Configuración Inicial
 local targetPlaceId = 139218725767607
-
 if game.PlaceId ~= targetPlaceId then
     warn("Este script solo funciona en el lugar con ID: " .. targetPlaceId)
-    -- return
+    -- Puedes descomentar el return si quieres bloquear la GUI fuera del lugar
 end
 
--- Función para encontrar comida (Mejorada con más criterios)
+-- ==============================
+-- FUNCIONES DE AUTO DELIVERY
+-- ==============================
+
 local function findFoodItem()
     local potentialFood = {}
     for _, item in ipairs(Workspace:GetChildren()) do
@@ -41,17 +46,18 @@ local function findFoodItem()
             end
         end
     end
-    
+
     local closestFood = nil
     local minDistance = math.huge
-    local playerPosition = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
-    if playerPosition then
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        local playerPos = root.Position
         for _, food in ipairs(potentialFood) do
-            local foodPosition = food:IsA("Model") and food.PrimaryPart and food.PrimaryPart.CFrame.Position or food.Position
-            if foodPosition then
-                local distance = (playerPosition - foodPosition).Magnitude
-                if distance < minDistance then
-                    minDistance = distance
+            local foodPos = food:IsA("Model") and food.PrimaryPart and food.PrimaryPart.Position or food.Position
+            if foodPos then
+                local dist = (playerPos - foodPos).Magnitude
+                if dist < minDistance then
+                    minDistance = dist
                     closestFood = food
                 end
             end
@@ -60,385 +66,223 @@ local function findFoodItem()
     return closestFood
 end
 
--- Función para mover con tween (Mejorada: tiempo variable para evadir anti-TP)
 local function movePlayerWithTween(targetCFrame)
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    
-    local tweenTime = math.random(3, 8) / 10  -- 0.3-0.8 segundos, variable
-    local tweenInfo = TweenInfo.new(tweenTime, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-    
-    local targetPosition = targetCFrame.Position
-    local newCFrame = CFrame.new(targetPosition) * (targetCFrame - targetPosition) * CFrame.new(0, 0, -2)
-    
-    local tween = TweenService:Create(humanoidRootPart, tweenInfo, {CFrame = newCFrame})
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local time = math.random(3, 8) / 10
+    local info = TweenInfo.new(time, Enum.EasingStyle.Linear)
+    local pos = targetCFrame.Position
+    -- Corregido: Simplifica el offset para evitar errores
+    local newCF = CFrame.new(pos) * CFrame.new(0, 0, -2)
+    local tween = TweenService:Create(hrp, info, {CFrame = newCF})
     tween:Play()
-    local success = tween.Completed:Wait()  -- Espera y verifica si se completó
-    if not success then
-        warn("Tween interrumpido, posiblemente por anti-TP")
-    end
+    tween.Completed:Wait()
 end
 
--- Función para recoger comida (Corregida: hold completo en ProximityPrompt, verificación de éxito)
 local function teleportAndPickUpFood()
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    
     local food = findFoodItem()
-    if food then
-        local foodCFrame = food:IsA("Model") and food.PrimaryPart and food.PrimaryPart.CFrame or food.CFrame
-        if foodCFrame then
-            movePlayerWithTween(foodCFrame)
-            
-            local prompt = food:FindFirstChildOfClass("ProximityPrompt") or (food.Parent and food.Parent:FindFirstChildOfClass("ProximityPrompt"))
-            if prompt then
-                prompt:InputHoldBegin()
-                wait(0.5)  -- Duración del hold, ajusta si es necesario
-                prompt:InputHoldEnd()
-                print("ProximityPrompt activado para " .. food.Name)
-            end
-            
-            local clickDetector = food:FindFirstChildOfClass("ClickDetector") or (food.Parent and food.Parent:FindFirstChildOfClass("ClickDetector"))
-            if clickDetector then
-                clickDetector:MouseClick()
-                print("ClickDetector activado para " .. food.Name)
-            end
-            
-            -- Verificación de éxito
-            wait(0.5)
-            if not food:IsDescendantOf(Workspace) then
-                print("Comida recogida exitosamente: " .. food.Name)
-            else
-                warn("Recogida fallida para: " .. food.Name)
-            end
-        else
-            warn("Posición inválida para: " .. food.Name)
-        end
-    else
+    if not food then
         warn("Comida no encontrada")
+        return
+    end
+
+    local cframe = food:IsA("Model") and food.PrimaryPart and food.PrimaryPart.CFrame or food.CFrame
+    if not cframe then
+        warn("Posición inválida para:", food.Name)
+        return
+    end
+
+    movePlayerWithTween(cframe)
+
+    local prompt = food:FindFirstChildOfClass("ProximityPrompt") or (food.Parent and food.Parent:FindFirstChildOfClass("ProximityPrompt"))
+    if prompt then
+        prompt:InputHoldBegin()
+        wait(0.5)
+        prompt:InputHoldEnd()
+        print("✅ ProximityPrompt activado:", food.Name)
+    end
+
+    local click = food:FindFirstChildOfClass("ClickDetector") or (food.Parent and food.Parent:FindFirstChildOfClass("ClickDetector"))
+    if click then
+        -- Corregido: Usa fireclickdetector (compatible con más executors)
+        fireclickdetector(click)
+        print("✅ ClickDetector activado:", food.Name)
+    end
+
+    wait(0.5)
+    if not food:IsDescendantOf(Workspace) then
+        print("📦 Comida recogida:", food.Name)
+    else
+        warn("❌ Recogida fallida:", food.Name)
     end
 end
 
--- Función para encontrar delivery target (Mejorada: filtros para excluir irrelevantes)
 local function findDeliveryTarget()
-    local deliveryTargets = {}
-    for _, descendant in ipairs(Workspace:GetDescendants()) do
-        if descendant:IsA("ProximityPrompt") then
-            local actionText = descendant.ActionText:lower()
-            local objectName = descendant.Parent and descendant.Parent.Name:lower() or ""
-            if actionText:match("deliver") or actionText:match("drop off") or actionText:match("turn in") or objectName:match("delivery") or objectName:match("npc") then
-                table.insert(deliveryTargets, descendant.Parent)
+    local targets = {}
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            local action = obj.ActionText:lower()
+            local parentName = obj.Parent and obj.Parent.Name:lower() or ""
+            if action:match("deliver") or action:match("drop off") or action:match("turn in") or parentName:match("delivery") or parentName:match("npc") then
+                table.insert(targets, obj.Parent)
             end
-        end
-        
-        if descendant:IsA("Model") and descendant:FindFirstChildOfClass("Humanoid") and not descendant:IsDescendantOf(LocalPlayer.Character) then
-            -- Filtro: Excluir NPCs con nombres de enemigo
-            if not descendant.Name:lower():match("enemy") and not descendant.Name:lower():match("guard") then
-                table.insert(deliveryTargets, descendant)
+        elseif obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and not obj:IsDescendantOf(LocalPlayer.Character) then
+            local name = obj.Name:lower()
+            if not name:match("enemy") and not name:match("guard") then
+                table.insert(targets, obj)
             end
-        end
-        
-        if descendant:IsA("ClickDetector") and (descendant.Parent.Name:lower():match("deliver") or descendant.Parent.Name:lower():match("npc")) then
-            table.insert(deliveryTargets, descendant.Parent)
+        elseif obj:IsA("ClickDetector") and obj.Parent then
+            local pName = obj.Parent.Name:lower()
+            if pName:match("deliver") or pName:match("npc") then
+                table.insert(targets, obj.Parent)
+            end
         end
     end
-    
-    local closestTarget = nil
-    local minDistance = math.huge
-    local playerPosition = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
-    if playerPosition then
-        for _, target in ipairs(deliveryTargets) do
-            local targetPosition = target:IsA("Model") and target.PrimaryPart and target.PrimaryPart.Position or target.Position
-            if targetPosition then
-                local distance = (playerPosition - targetPosition).Magnitude
-                if distance < minDistance then
-                    minDistance = distance
-                    closestTarget = target
+
+    local closest = nil
+    local minDist = math.huge
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        local pos = root.Position
+        for _, t in ipairs(targets) do
+            local tPos = t:IsA("Model") and t.PrimaryPart and t.PrimaryPart.Position or t.Position
+            if tPos then
+                local d = (pos - tPos).Magnitude
+                if d < minDist then
+                    minDist = d
+                    closest = t
                 end
             end
         end
     end
-    return closestTarget
+    return closest
 end
 
--- Función para entregar (Corregida: igual que recoger, con verificación de éxito)
 local function deliverFoodToTarget()
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    
-    local deliveryTarget = findDeliveryTarget()
-    if deliveryTarget then
-        local targetCFrame = deliveryTarget:IsA("Model") and deliveryTarget.PrimaryPart and deliveryTarget.PrimaryPart.CFrame or deliveryTarget.CFrame
-        if targetCFrame then
-            movePlayerWithTween(targetCFrame)
-            
-            local prompt = deliveryTarget:FindFirstChildOfClass("ProximityPrompt") or (deliveryTarget.Parent and deliveryTarget.Parent:FindFirstChildOfClass("ProximityPrompt"))
-            if prompt then
-                prompt:InputHoldBegin()
-                wait(0.5)
-                prompt:InputHoldEnd()
-                print("ProximityPrompt de entrega activado para " .. deliveryTarget.Name)
-            end
-            
-            local clickDetector = deliveryTarget:FindFirstChildOfClass("ClickDetector") or (deliveryTarget.Parent and deliveryTarget.Parent:FindFirstChildOfClass("ClickDetector"))
-            if clickDetector then
-                clickDetector:MouseClick()
-                print("ClickDetector de entrega activado para " .. deliveryTarget.Name)
-            end
-            
-            -- Verificación de éxito (ej: si el inventario cambia o aparece una notificación; ajusta según el juego)
-            wait(0.5)
-            -- Aquí puedes añadir checks específicos, como si tu "puntuación" aumenta o si aparece un mensaje
-            print("Intento de entrega completado para: " .. deliveryTarget.Name)
-        else
-            warn("Posición inválida para el objetivo de entrega: " .. deliveryTarget.Name)
-        end
-    else
+    local target = findDeliveryTarget()
+    if not target then
         warn("Objetivo de entrega no encontrado")
+        return
     end
+
+    local cframe = target:IsA("Model") and target.PrimaryPart and target.PrimaryPart.CFrame or target.CFrame
+    if not cframe then
+        warn("Posición inválida para entrega:", target.Name)
+        return
+    end
+
+    movePlayerWithTween(cframe)
+
+    local prompt = target:FindFirstChildOfClass("ProximityPrompt") or (target.Parent and target.Parent:FindFirstChildOfClass("ProximityPrompt"))
+    if prompt then
+        prompt:InputHoldBegin()
+        wait(0.5)
+        prompt:InputHoldEnd()
+        print("📤 Entrega activada (Prompt):", target.Name)
+    end
+
+    local click = target:FindFirstChildOfClass("ClickDetector") or (target.Parent and target.Parent:FindFirstChildOfClass("ClickDetector"))
+    if click then
+        -- Corregido: Usa fireclickdetector
+        fireclickdetector(click)
+        print("📤 Entrega activada (Click):", target.Name)
+    end
+
+    wait(0.5)
+    print("✅ Intento de entrega completado:", target.Name)
 end
 
--- Función principal de automatización
 local isRunning = false
 local function automateFoodDelivery()
     if isRunning then return end
     isRunning = true
-    
     local success, err = pcall(function()
         teleportAndPickUpFood()
         wait(0.5)
         deliverFoodToTarget()
         wait(1)
     end)
-    
     if not success then
-        warn("Error en el ciclo de Auto Delivery:" .. tostring(err))
+        warn("Error en Auto Delivery:", err)
     end
-    
     isRunning = false
 end
 
--- Variable para controlar el estado del toggle
 local toggle = false
-
--- Función para manejar cambios en el toggle
-local function onToggleChanged(newState)
-    toggle = newState
+local function onToggleChanged(state)
+    toggle = state
     if toggle then
         spawn(function()
             while toggle do
                 automateFoodDelivery()
-                wait(math.random(2, 4))  -- Delay variable para reducir detección
+                wait(math.random(2, 4))
             end
         end)
     end
 end
 
---------------------------------------------------------------------------------
--- CÓDIGO DE LA INTERFAZ GRÁFICA (GUI)
---------------------------------------------------------------------------------
+-- ==============================
+-- CREAR GUI (SIEMPRE SE CREA)
+-- ==============================
 
--- Crear la Ventana Principal
 local Window = WindUI:CreateWindow({
     Title = "Lorenz0 | Hub",
     Author = "by Lorenz0",
-    Folder = nil,
-    NewElements = true,
-    HideSearchBar = false,
     OpenButton = {
-        Title = "Open Lorenz0 hub UI",
+        Title = "Open Lorenz0 Hub",
         Icon = "monitor",
         CornerRadius = UDim.new(1, 0),
         StrokeThickness = 3,
         Enabled = true,
         Draggable = true,
         OnlyMobile = true,
-        Color = ColorSequence.new(
-            Color3.fromHex("#30FF6A"),
-            Color3.fromHex("#e7ff2f")
-        )
+        Color = ColorSequence.new(Color3.fromHex("#30FF6A"), Color3.fromHex("#e7ff2f"))
     }
 })
 
--- Agregar Etiqueta de Versión
-Window:Tag({
-    Title = "v1.0",
-    Color = Color3.fromHex("FF1BF78D")
-})
+Window:Tag({ Title = "v1.0", Color = Color3.fromRGB(26, 255, 141) })
 
--- Crear Secciones
 local ElementsSection = Window:Section({ Title = "Elementos" })
-local ConfigUsageSection = Window:Section({ Title = "Configuracion" })
+local ConfigSection = Window:Section({ Title = "Configuración" })
 local OtherSection = Window:Section({ Title = "Otros" })
 
--- Cargar íconos (opcional, con manejo de errores)
-local successIcons, iconErr = pcall(function()
-    local NebulaIcons = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
+-- Cargar íconos (opcional, no crítico)
+local successIcons, NebulaIcons = pcall(function()
+    return loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
 end)
 
-if not successIcons then
-    warn("⚠️ No se cargaron íconos:", iconErr)
+if successIcons and NebulaIcons and NebulaIcons.Fluency then
+    WindUI.Creator.AddIcons("fluency", NebulaIcons.Fluency)
 end
-WindUI.Creator.AddIcons("fluency", NebulaIcons.Fluency)
 
--- Pestaña de Delivery (Elementos)
+-- Pestaña Delivery
 local DeliveryTab = ElementsSection:Tab({ Title = "Delivery", Icon = "box" })
-
--- Toggle para Auto Delivery (CONECTADO AL CÓDIGO)
-DeliveryTab:Toggle({ 
+DeliveryTab:Toggle({
     Title = "Auto Delivery",
-    Desc = "Recoge la comida automáticamente y la entrega.",
-    Callback = onToggleChanged -- Conecta el toggle a la función de control
+    Desc = "Recoge y entrega comida automáticamente.",
+    Callback = onToggleChanged
 })
 DeliveryTab:Space()
 
--- Pestaña de Button (Elementos)
-local ButtonTab = ElementsSection:Tab({
-    Title = "Button",
-    Icon = "mouse-pointer-click" })
-
-local HighlightButton
-HighlightButton = ButtonTab:Button({
-    Title = "Highlight Button",
-    Icon = "mouse",
-    Callback = function()
-        print("clicked highlight")
-        HighlightButton:Highlight()
-    end
-})
-ButtonTab:Space()
-
--- Pestaña de Input (Elementos)
-local InputTab = ElementsSection:Tab({ Title = "Input", Icon = "text-cursor-input" })
-
-InputTab:Input({ Title = "Input", Icon = "mouse" })
-InputTab:Space()
-InputTab:Input({ Title = "Input Textarea", Type = "Textarea", Icon = "mouse" })
-InputTab:Space()
-InputTab:Input({ Title = "Input Textarea", Type = "Textarea" })
-InputTab:Space()
-InputTab:Input({ Title = "Input", Desc = "Input example" })
-InputTab:Space()
-InputTab:Input({ Title = "Input Textarea", Desc = "Input example", Type = "Textarea" })
-InputTab:Space()
-InputTab:Input({ Title = "Input", Locked = true })
-InputTab:Input({ Title = "Input", Desc = "Input example", Locked = true })
-
--- Pestaña de Config Elements (Configuración)
-local ConfigElementsTab = ConfigUsageSection:Tab({
-    Title = "Config Elements",
-    Icon = "square-dashed-mouse-pointer"
+-- Botón de prueba
+local ButtonTab = ElementsSection:Tab({ Title = "Pruebas", Icon = "test-tube" })
+ButtonTab:Button({
+    Title = "Test Button",
+    Callback = function() print("Botón de prueba funcionando") end
 })
 
-ConfigElementsTab:Colorpicker({
-    Flag = "ColorpickerTest",
-    Title = "Colorpicker",
-    Desc = "Colorpicker Description",
-    Default = Color3.fromRGB(0, 255, 0),
-    Transparency = 0,
-    Locked = false,
-    Callback = function(color) print("Background color: " .. tostring(color)) end
-})
-ConfigElementsTab:Space()
-
-ConfigElementsTab:Dropdown({
-    Flag = "DropdownTest",
-    Title = "Advanced Dropdown",
-    Values = {
-        { Title = "Category A", Icon = "bird" },
-        { Title = "Category B", Icon = "house" },
-        { Title = "Category C", Icon = "droplet" },
-    },
-    Value = "Category A",
-    Callback = function(option) print("Category selected: " .. option.Title .. " with icon " .. option.Icon) end
-})
-ConfigElementsTab:Space()
-
-ConfigElementsTab:Keybind({
-    Flag = "KeybindTest",
-    Title = "Keybind",
-    Desc = "Keybind to open ui",
-    Value = "G",
-    Callback = function(v) Window:SetToggleKey(Enum.KeyCode[v]) end
-})
-ConfigElementsTab:Space()
-
--- Pestaña de Config Usage (Configuración)
-local ConfigTab = ConfigUsageSection:Tab({  
-    Title = "Config Usage",
-    Icon = "folder"
-})
-
-local ConfigManager = Window.ConfigManager
-local ConfigName = "default"
-
-local ConfigNameInput = ConfigTab:Input({
-    Title = "Config Name",
-    Icon = "file-cog",
-    Callback = function(value) ConfigName = value end
-})
-
-local AllConfigs = ConfigManager:AllConfigs()
-local DefaultValue = table.find(AllConfigs, ConfigName) and ConfigName or nil
-
-ConfigTab:Dropdown({
-    Title = "All Configs",
-    Desc = "Select existing configs",
-    Values = AllConfigs,
-    Value = DefaultValue,
-    Callback = function(value)
-        ConfigName = value
-        ConfigNameInput:Set(value)
-    end
-})
-ConfigTab:Space()
-ConfigTab:Button({
-    Title = "Save Config",
-    Icon = "",
-    Justify = "Center",
-    Callback = function()
-        Window.CurrentConfig = ConfigManager:CreateConfig(ConfigName)
-        if Window.CurrentConfig:Save() then
-            WindUI:Notify({
-                Title = "Config Saved",
-                Desc = "Config '" .. ConfigName .. "' saved",
-                Icon = "check",
-            })
-        end
-    end
-})
-ConfigTab:Space()
-ConfigTab:Button({
-    Title = "Load Config",
-    Icon = "",
-    Justify = "Center",
-    Callback = function()
-        Window.CurrentConfig = ConfigManager:CreateConfig(ConfigName)
-        if Window.CurrentConfig:Load() then
-            WindUI:Notify({
-                Title = "Config Loaded",
-                Desc = "Config '" .. ConfigName .. "' loaded",
-                Icon = "refresh-cw",
-            })
-        end
-    end
-})
-
--- Pestaña de Discord (Otros)
-local InviteCode = "ftgs-development-hub-1300692552005189632"
-local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
-
-local Response = game:GetService("HttpService"):JSONDecode(WindUI.Creator.Request({
-    Url = DiscordAPI,
-    Method = "GET",
-    Headers = {
-        ["User-Agent"] = "WindUI/Example",
-        ["Accept"] = "application/json"
-    }
-}).Body)
-
+-- Sección de Discord (sin romper si falla)
 local DiscordTab = OtherSection:Tab({ Title = "Discord" })
+DiscordTab:Button({
+    Title = "Unirse al Discord",
+    Callback = function()
+        setclipboard("https://discord.gg/ftgs-development-hub-1300692552005189632")
+        WindUI:Notify({
+            Title = "Enlace copiado",
+            Desc = "¡Únete a nuestro servidor!",
+            Icon = "users"
+        })
+    end
+})
 
-if Response and Response.guild then
-    DiscordTab:Section({ Title = "Join our Discord server!", TextSize = 20,})
-end
+print("✅ GUI de Lorenz0 cargada correctamente")
