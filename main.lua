@@ -1,12 +1,8 @@
 -- Inicialización y Configuración Global
 getgenv().SecureMode = true
 
--- Cargar WindUI desde GitHub (con check de error)
+-- Cargar WindUI desde GitHub
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-if not WindUI then
-    warn("Error: No se pudo cargar WindUI. Verifica tu conexión o executor.")
-    return
-end
 
 -- Servicios de Roblox
 local Players = game:GetService("Players")
@@ -268,13 +264,9 @@ local ElementsSection = Window:Section({ Title = "Elementos" })
 local ConfigUsageSection = Window:Section({ Title = "Configuracion" })
 local OtherSection = Window:Section({ Title = "Otros" })
 
--- Cargar Iconos de Nebula (opcional; quita esta sección si no quieres iconos)
+-- Cargar Iconos de Nebula
 local NebulaIcons = loadstring(game:HttpGet("https://raw.nebulasoftworks.xyz/nebula-icon-library-loader"))()
-if NebulaIcons then
-    WindUI.Creator.AddIcons("fluency", NebulaIcons.Fluency)
-else
-    warn("Iconos no cargados; algunos elementos podrían no tener iconos.")
-end
+WindUI.Creator.AddIcons("fluency", NebulaIcons.Fluency)
 
 -- Pestaña de Delivery (Elementos)
 local DeliveryTab = ElementsSection:Tab({ Title = "Delivery", Icon = "box" })
@@ -435,19 +427,5 @@ local Response = game:GetService("HttpService"):JSONDecode(WindUI.Creator.Reques
 local DiscordTab = OtherSection:Tab({ Title = "Discord" })
 
 if Response and Response.guild then
-    DiscordTab:Section({ Title = "Join our Discord server!", TextSize = 20 })
-    DiscordTab:Paragraph({
-        Title = tostring(Response.guild.name),
-        Desc = tostring(Response.guild.description),
-        Image = "https://cdn.discordapp.com/icons/" .. Response.guild.id .. "/" .. Response.guild.icon .. ".png?size=1024",
-        Thumbnail = "https://cdn.discordapp.com/banners/1300692552005189632/35981388401406a4b7dffd6f447a64c4.png?size=512",
-        ImageSize = 48,
-        Buttons = {
-            {
-                Title = "Copy link",
-                Icon = "link",
-                Callback = function() setclipboard("https://discord.gg/" .. InviteCode) end
-            }
-        }
-    })
+    DiscordTab:Section({ Title = "Join our Discord server!", TextSize = 20,})
 end
